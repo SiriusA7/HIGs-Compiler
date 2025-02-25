@@ -6,7 +6,83 @@ from utils import sanitize_filename, get_unique_filename, calculate_content_hash
 def add_page_break_script():
     """JavaScript to handle image pagination and section breaks"""
     return """
-        // ...existing code from the original page break script...
+        // Handle images and their captions
+        function wrapImageWithCaption(img) {
+            const wrapper = document.createElement('div');
+            wrapper.style.pageBreakInside = 'avoid';
+            wrapper.style.breakInside = 'avoid';
+            wrapper.style.margin = '1em 0';
+            wrapper.style.display = 'flex';
+            wrapper.style.flexDirection = 'column';
+
+            // Find related caption
+            let caption = img.closest('figure')?.querySelector('figcaption') ||
+                         (img.nextElementSibling?.matches('.caption, [class*="caption"], p[class*="caption"]') 
+                            ? img.nextElementSibling : null) ||
+                         img.closest('dt')?.nextElementSibling;
+
+            // Get the container that holds both image and caption
+            const container = img.closest('figure') || img.parentElement;
+            
+            if (container) {
+                container.style.pageBreakInside = 'avoid';
+                container.style.breakInside = 'avoid';
+                
+                if (!container.parentElement?.hasAttribute('data-image-wrapper')) {
+                    wrapper.setAttribute('data-image-wrapper', 'true');
+                    container.parentNode.insertBefore(wrapper, container);
+                    wrapper.appendChild(container);
+                }
+            } else {
+                wrapper.setAttribute('data-image-wrapper', 'true');
+                img.parentNode.insertBefore(wrapper, img);
+                wrapper.appendChild(img);
+                if (caption) wrapper.appendChild(caption);
+            }
+        }
+
+        // Handle Resources and Change Log sections
+        function handleSpecialSections() {
+            const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+            
+            const resourcesHeading = headings.find(h => 
+                h.textContent.toLowerCase().includes('resource') ||
+                h.textContent.toLowerCase().includes('related') ||
+                h.textContent.toLowerCase().includes('see also')
+            );
+
+            if (resourcesHeading) {
+                // Create resources wrapper with page break
+                const wrapper = document.createElement('div');
+                wrapper.style.pageBreakBefore = 'always';
+                wrapper.style.breakBefore = 'page';
+                
+                // Get all content until next major heading or end
+                const content = [];
+                let current = resourcesHeading;
+                
+                while (current) {
+                    const next = current.nextElementSibling;
+                    if (next && next.matches('h1')) break;
+                    content.push(current);
+                    current = next;
+                }
+
+                // Move content to wrapper
+                resourcesHeading.parentNode.insertBefore(wrapper, resourcesHeading);
+                content.forEach(node => wrapper.appendChild(node));
+            }
+        }
+
+        // Process images first
+        document.querySelectorAll('img, [role="img"], svg').forEach(wrapImageWithCaption);
+        document.querySelectorAll('.graphics-container, [class*="figure"], [class*="image"]').forEach(container => {
+            container.style.pageBreakInside = 'avoid';
+            container.style.breakInside = 'avoid';
+        });
+
+        // Then handle special sections
+        handleSpecialSections();
     """
 
 def generate_pdfs(article_urls):
