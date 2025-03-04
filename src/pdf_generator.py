@@ -1,7 +1,7 @@
 from playwright.sync_api import sync_playwright
 import urllib.parse
 import os
-from utils import (
+from src.utils import (
     sanitize_filename, get_unique_filename, calculate_content_hash, 
     create_index_html, get_pdf_page_count, create_cover_html
 )

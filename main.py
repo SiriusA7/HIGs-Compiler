@@ -1,6 +1,6 @@
-from url_discovery import get_article_urls
-from pdf_generator import generate_pdfs
-from pdf_merger import merge_pdfs
+from src.url_discovery import get_article_urls
+from src.pdf_generator import generate_pdfs
+from src.pdf_merger import merge_pdfs
 
 def main():
     articles = get_article_urls()
