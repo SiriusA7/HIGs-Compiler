@@ -6,6 +6,15 @@ This tool automatically scrapes and compiles Apple's Human Interface Guidelines 
 
 This tool is for **personal use only**. The Apple Human Interface Guidelines are copyrighted material owned by Apple Inc. This script merely facilitates access to publicly available content for personal reference. The generated PDF should not be redistributed or used for commercial purposes.
 
+## 🤔 Why Use This Tool
+
+Having Apple's Human Interface Guidelines available as a single, offline PDF provides several benefits:
+
+- **Offline Access**: Access the complete HIG documentation during flights, commutes, or in areas with limited internet connectivity
+- **Persistent Reference**: Maintain access to a specific version of the guidelines even if the online documentation changes
+- **Improved Navigation**: Quickly search across the entire documentation using PDF reader search functions
+- **Annotation**: Add personal notes, highlights, and bookmarks directly on the document
+
 ## ✨ Features
 
 - Automatically discovers all HIG articles from Apple's developer website
