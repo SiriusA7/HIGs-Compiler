@@ -1,7 +1,10 @@
 from playwright.sync_api import sync_playwright
 import urllib.parse
 import os
-from utils import sanitize_filename, get_unique_filename, calculate_content_hash, create_index_html
+from utils import (
+    sanitize_filename, get_unique_filename, calculate_content_hash, 
+    create_index_html, get_pdf_page_count, create_cover_html
+)
 
 def add_page_break_script():
     """JavaScript to handle image pagination and section breaks"""
@@ -86,16 +89,37 @@ def add_page_break_script():
     """
 
 def generate_pdfs(article_urls):
-    """Generate PDFs for all articles, skipping duplicates"""
-    output_dir = f'Apple-HIGs'
+    """Generate PDFs for all articles"""
+    output_dir = 'Apple-HIGs'
     os.makedirs(output_dir, exist_ok=True)
     generated_files = []
     titles = []
+    page_numbers = []
     content_hashes = set()
+    current_page = 1
     
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        context = browser.new_context()
+        context = browser.new_context(
+            viewport={'width': 1200, 'height': 800},
+            forced_colors='none'
+        )
+        
+        # Generate cover page
+        cover_page = context.new_page()
+        cover_html = create_cover_html()
+        cover_page.set_content(cover_html)
+        cover_file = os.path.join(output_dir, "_cover.pdf")
+        cover_page.pdf(
+            path=cover_file,
+            format='A4',
+            print_background=True,
+            margin={'top': '1cm', 'bottom': '1cm', 'left': '1cm', 'right': '1cm'},
+        )
+        cover_page.close()
+        
+        # Store cover file but don't add to generated_files yet
+        current_page += get_pdf_page_count(cover_file)
         
         # Generate PDFs for articles
         for idx, url in enumerate(article_urls, 1):
@@ -129,16 +153,22 @@ def generate_pdfs(article_urls):
                 safe_title = sanitize_filename(f"{section}-{title}")
                 filepath = get_unique_filename(output_dir, f"{safe_title}.pdf")
                 
-                page.pdf(
-                    path=filepath,
-                    format='A4',
-                    print_background=True,
-                    margin={'top': '1cm', 'bottom': '1cm', 'left': '1cm', 'right': '1cm'},
-                    display_header_footer=False
-                )
+                pdf_options = {
+                    'path': filepath,
+                    'format': 'A4',
+                    'print_background': True,
+                    'margin': {'top': '1cm', 'bottom': '1cm', 'left': '1cm', 'right': '1cm'},
+                    'display_header_footer': False
+                }
+                
+                page.pdf(**pdf_options)
+                
+                page_count = get_pdf_page_count(filepath)
+                page_numbers.append(current_page)
+                current_page += page_count
                 
                 generated_files.append(filepath)
-                print(f'Generated ({idx}/{len(article_urls)}): {os.path.basename(filepath)}')
+                print(f'Generated ({idx}/{len(article_urls)}): {os.path.basename(filepath)} - {page_count} pages')
                 
             except Exception as e:
                 print(f'Failed {url}: {str(e)}')
@@ -146,21 +176,26 @@ def generate_pdfs(article_urls):
                 page.close()
         
         # Create index
-        sections_info = [(title, i+1) for i, title in enumerate(titles)]
+        sections_info = list(zip(titles, page_numbers))
         index_html = create_index_html(sections_info)
         index_file = os.path.join(output_dir, "_index.pdf")
         
         index_page = context.new_page()
         index_page.set_content(index_html)
-        index_page.pdf(
-            path=index_file,
-            format='A4',
-            print_background=True,
-            margin={'top': '1cm', 'bottom': '1cm', 'left': '1cm', 'right': '1cm'},
-        )
+        
+        pdf_options = {
+            'path': index_file,
+            'format': 'A4',
+            'print_background': True,
+            'margin': {'top': '1cm', 'bottom': '1cm', 'left': '1cm', 'right': '1cm'}
+        }
+        
+        index_page.pdf(**pdf_options)
         index_page.close()
         
-        generated_files.insert(0, index_file)
+        # Add files in the correct order: cover, index, content
+        generated_files = [cover_file, index_file] + generated_files
         browser.close()
-    
-    return output_dir, generated_files, sections_info
+        
+        # Return tuple directly instead of list of tuples
+        return (output_dir, generated_files, sections_info)

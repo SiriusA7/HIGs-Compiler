@@ -11,33 +11,35 @@ def merge_pdfs(output_dir, generated_files, sections_info):
 
     try:
         merger = PdfMerger()
-        current_page = 0
+        
+        # Add cover page
+        if os.path.exists(generated_files[0]):
+            cover_pages = len(PdfReader(generated_files[0]).pages)
+            merger.append(generated_files[0])
         
         # Add index page
-        if os.path.exists(generated_files[0]):
-            merger.append(generated_files[0])
-            current_page += len(PdfReader(generated_files[0]).pages)
+        if os.path.exists(generated_files[1]):
+            index_pages = len(PdfReader(generated_files[1]).pages)
+            merger.append(generated_files[1])
         
-        # Add content pages with bookmarks
-        for idx, pdf_path in enumerate(generated_files[1:], 1):
+        # Add content pages with bookmarks using provided page numbers
+        for idx, pdf_path in enumerate(generated_files[2:], 1):
             if os.path.exists(pdf_path):
                 print(f"Adding: {os.path.basename(pdf_path)}")
                 try:
-                    # Get title from sections_info tuple (title, page_num)
-                    section_title = sections_info[idx-1][0]  # Access first element of tuple
-                    reader = PdfReader(pdf_path)
-                    num_pages = len(reader.pages)
+                    section_title, page_number = sections_info[idx-1]
                     
+                    # Add bookmark with named destination
                     merger.append(
                         pdf_path,
                         outline_item={
                             "title": section_title,
-                            "page_number": current_page,
-                            "type": "/Fit"
+                            "page_number": page_number + index_pages - 1,
+                            "type": "/Fit",
+                            "color": "0,0,0",  # Black color for bookmark
+                            "dest": f"section_{idx}"  # Named destination for internal linking
                         }
                     )
-                    
-                    current_page += num_pages
                 except Exception as e:
                     print(f"Error adding {pdf_path}: {str(e)}")
                     continue
