@@ -1,2 +1,3 @@
 .DS_Store
 Apple-HIGs/
+__pycache__/
