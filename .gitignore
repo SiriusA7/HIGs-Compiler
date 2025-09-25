@@ -1,3 +1,20 @@
-.DS_Store
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# VS Code
+.vscode/
+
+# Generated outputs
+Apple-HIGs/
+Apple-HIGs-md/
+
+# Playwright cache
+**/ms-playwright/
+**/playwright/.cache/
+
+# Mac
+.DS_Store.DS_Store
 Apple-HIGs/
 __pycache__/

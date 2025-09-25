@@ -337,7 +337,8 @@ def get_article_urls():
                 },
             }
 
-            def map_root_slug_to_top(slug: str) -> str | None:
+            from typing import Optional
+            def map_root_slug_to_top(slug: str) -> Optional[str]:
                 if slug in getting_started_slugs:
                     return "Getting Started"
                 if slug in foundations_slugs:
