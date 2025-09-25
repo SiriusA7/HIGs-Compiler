@@ -47,15 +47,68 @@ def get_pdf_page_count(pdf_path):
         print(f"Error getting page count for {pdf_path}: {str(e)}")
         return 0
 
-def create_index_html(sections_info):
-    """Create index page HTML with Apple-style design"""
-    items = '\n'.join([
-        f'<li><a href="#{idx}"><span class="title">{title}</span>'
-        f'<span class="page">{page}</span></a></li>'
-        for idx, (title, page) in enumerate(sections_info, 1)
-    ])
-    
-    return f"""
+def create_index_html(sections, generated_files_map, cover_page_count):
+    """Create index page HTML preserving the given order for sections and sub-sections.
+
+    We estimate the number of index pages for page number calculation and then
+    assign page numbers in the same order the content will be merged.
+    """
+
+    # Start after the cover
+    current_page = cover_page_count
+
+    # Estimate index length to offset article page numbers correctly
+    total_articles = sum(
+        len(s.get("articles", [])) + sum(len(ss.get("articles", [])) for ss in s.get("sub_sections", []))
+        for s in sections
+    )
+    estimated_index_pages = max(1, (total_articles // 45) + 1)
+    current_page += estimated_index_pages
+
+    # Assign page numbers in merge order
+    processed_urls = set()
+    for section in sections:
+        for article in section.get("articles", []):
+            if article["url"] in processed_urls:
+                continue
+            filepath, page_count = generated_files_map.get(article["url"], (None, 0))
+            if filepath:
+                article["page_num"] = current_page
+                current_page += page_count
+                processed_urls.add(article["url"])
+        for sub_section in section.get("sub_sections", []):
+            for article in sub_section.get("articles", []):
+                if article["url"] in processed_urls:
+                    continue
+                filepath, page_count = generated_files_map.get(article["url"], (None, 0))
+                if filepath:
+                    article["page_num"] = current_page
+                    current_page += page_count
+                    processed_urls.add(article["url"])
+
+    # Generate HTML (preserve order; no alphabetical sorting)
+    items_html = ""
+    for section in sections:
+        items_html += f'<li class="section-title">{section["title"]}</li>'
+
+        for article in section.get("articles", []):
+            items_html += (
+                f'<li><a href="#"><span class="title">{article["title"]}</span>'
+                f'<span class="page">{article.get("page_num", "")}</span></a></li>'
+            )
+
+        if section.get("sub_sections"):
+            items_html += '<ul class="sub-section">'
+            for sub_section in section["sub_sections"]:
+                items_html += f'<li class="sub-section-title">{sub_section["title"]}</li>'
+                for article in sub_section["articles"]:
+                    items_html += (
+                        f'<li><a href="#"><span class="title">{article["title"]}</span>'
+                        f'<span class="page">{article.get("page_num", "")}</span></a></li>'
+                    )
+            items_html += '</ul>'
+
+    html = f"""
         <html>
         <head>
             <style>
@@ -76,10 +129,28 @@ def create_index_html(sections_info):
                     list-style: none;
                     padding: 0;
                     margin: 0;
-                    border-top: 1px solid #d2d2d7;
                 }}
                 li {{
                     border-bottom: 1px solid #d2d2d7;
+                }}
+                li.section-title {{
+                    font-size: 24px;
+                    font-weight: 600;
+                    padding-top: 24px;
+                    padding-bottom: 8px;
+                    border-bottom: none;
+                }}
+                .sub-section {{
+                    padding-left: 20px;
+                    border-top: 1px solid #d2d2d7;
+                    margin-top: 8px;
+                }}
+                .sub-section-title {{
+                    font-size: 19px;
+                    font-weight: 500;
+                    padding-top: 16px;
+                    padding-bottom: 8px;
+                    border-bottom: none;
                 }}
                 a {{
                     text-decoration: none;
@@ -89,26 +160,18 @@ def create_index_html(sections_info):
                     justify-content: space-between;
                     align-items: center;
                 }}
-                a:hover {{
-                    color: #06c;
-                }}
-                .title {{
-                    font-size: 17px;
-                    letter-spacing: -0.022em;
-                }}
-                .page {{
-                    color: #86868b;
-                    font-size: 15px;
-                    font-weight: 400;
-                }}
+                a:hover {{ color: #06c; }}
+                .title {{ font-size: 17px; letter-spacing: -0.022em; }}
+                .page {{ color: #86868b; font-size: 15px; font-weight: 400; }}
             </style>
         </head>
         <body>
             <h1>Contents</h1>
-            <ul>{items}</ul>
+            <ul>{items_html}</ul>
         </body>
         </html>
     """
+    return html, sections
 
 def create_cover_html():
     """Create a minimalist cover page"""
